@@ -1,0 +1,161 @@
+services:
+  ###########################################
+  # PostgreSQL Database
+  ###########################################
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  ###########################################
+  # Apache Airflow (Scheduler & Webserver)
+  ###########################################
+  ###########################################
+  # Apache Airflow (Webserver & Scheduler)
+  ###########################################
+  airflow_webserver:
+    build:
+      context: ../
+      dockerfile: docker/airflow/Dockerfile
+    container_name: airflow_web
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: "SequentialExecutor"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow"
+      AIRFLOW__CORE__SECRET_KEY: "a_really_strong_and_random_key_for_airflow_12345!"
+      PYTHONPATH: "/opt/airflow:/opt/airflow/src"
+    ports:
+      - "38081:8080"
+    command: ["airflow", "webserver"]
+    volumes:
+      - ../airflow_dags:/opt/airflow/dags
+      - ../src:/opt/airflow/src
+      - ../project_config.yaml:/opt/airflow/project_config.yaml
+      - airflow_logs:/opt/airflow/logs
+      - ../data:/opt/airflow/data
+      - ../src/models/artifacts:/opt/airflow/src/models/artifacts
+      - ../mlflow_artifacts:/opt/airflow/mlflow_artifacts   # <--- add this
+      - ../mlflow_artifacts:/mlflow_artifacts          # 👈 important
+
+
+  airflow_scheduler:
+    build:
+      context: ../
+      dockerfile: docker/airflow/Dockerfile
+    container_name: airflow_scheduler
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__CORE__EXECUTOR: "SequentialExecutor"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres:5432/airflow
+      AIRFLOW__CORE__AIRFLOW_HOME: "/opt/airflow"
+      AIRFLOW__CORE__SECRET_KEY: "a_really_strong_and_random_key_for_airflow_12345!"
+      PYTHONPATH: "/opt/airflow:/opt/airflow/src"
+    command: ["airflow", "scheduler"]
+    volumes:
+      - ../airflow_dags:/opt/airflow/dags
+      - ../src:/opt/airflow/src
+      - ../project_config.yaml:/opt/airflow/project_config.yaml
+      - airflow_logs:/opt/airflow/logs
+      - ../data:/opt/airflow/data
+      - ../src/models/artifacts:/opt/airflow/src/models/artifacts
+      - ../mlflow_artifacts:/opt/airflow/mlflow_artifacts   # <--- add this
+      - ../mlflow_artifacts:/mlflow_artifacts          # 👈 important
+
+  ###########################################
+  # MLflow Tracking Server
+  ###########################################
+  mlflow:
+    build:
+      context: ../
+      dockerfile: docker/mlflow/Dockerfile
+    container_name: mlflow_server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      BACKEND_STORE_URI: postgresql+psycopg2://airflow:airflow@postgres:5432/mlflow
+      ARTIFACT_ROOT: /mlflow_artifacts
+    command: >
+      mlflow server
+        --backend-store-uri postgresql+psycopg2://airflow:airflow@postgres:5432/mlflow
+        --default-artifact-root /mlflow_artifacts
+        --host 0.0.0.0
+        --port 5000
+    ports:
+      - "5500:5000"
+    volumes:
+      - ../mlflow_artifacts:/mlflow_artifacts
+
+  ###########################################
+  # Apache Superset (Visualization)
+  ###########################################
+  # superset:
+  #   image: apache/superset:latest
+  #   container_name: superset_viz
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   environment:
+  #     SUPERSET_LOAD_EXAMPLES: "true"
+  #     SUPERSET_WEBSERVER_WORKERS: 2
+  #     ADMIN_USERNAME: admin
+  #     ADMIN_PASSWORD: admin
+  #     ADMIN_EMAIL: admin@superset.com
+  #     SUPERSET_CONFIG_PATH: /app/superset_config.py
+  #   command: >
+  #     bash -c "
+  #     pip install psycopg2-binary &&
+  #     /app/docker/docker-bootstrap.sh
+  #     "
+  #   ports:
+  #     - "8088:8088"
+  #   volumes:
+  #     - superset_data:/app/superset_home
+  #     - ./superset/config.py:/app/superset_config.py
+
+  ###########################################
+  # Logistic Regression Prediction API
+  ###########################################
+  model_api:
+    build:
+      context: ../
+      dockerfile: docker/model_api/Dockerfile
+    container_name: lr_api_server
+    depends_on:
+      - airflow_webserver
+    environment:
+      # Point to Linear Regression meter model
+      MODEL_PATH: /app/src/models/artifacts/models/linear_regression_model.pkl
+      # Only needed if you have an encoder; otherwise you can remove
+      ENCODER_PATH: /app/src/models/artifacts/models/encoder.pkl
+    ports:
+      - "5501:5501"
+    volumes:
+      - ../src:/app/src
+
+
+
+volumes:
+  postgres_data:
+  airflow_logs:
+  superset_data:

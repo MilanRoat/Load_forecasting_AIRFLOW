@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Loan Approval Prediction</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f3f4f6;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .page {
+            width: 100%;
+            max-width: 960px;
+            padding: 24px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+            padding: 24px 24px 20px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+            gap: 24px;
+        }
+
+        @media (max-width: 820px) {
+            .card {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .header {
+            margin-bottom: 16px;
+        }
+
+        .title {
+            margin: 0;
+            font-size: 1.6rem;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            margin: 4px 0 0;
+            font-size: 0.85rem;
+            color: #6b7280;
+        }
+
+        form {
+            margin-top: 8px;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 16px;
+        }
+
+        @media (max-width: 600px) {
+            .field-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            font-size: 0.85rem;
+        }
+
+        .field label {
+            margin-bottom: 4px;
+            color: #374151;
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .range-note {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            font-weight: normal;
+        }
+
+        input,
+        select {
+            padding: 7px 9px;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            background: #f9fafb;
+            color: #111827;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.12s ease, background 0.12s ease;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #2563eb;
+            background: #ffffff;
+        }
+
+        input::placeholder {
+            color: #9ca3af;
+        }
+
+        .actions {
+            margin-top: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 8px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            cursor: pointer;
+            background: #2563eb;
+            color: #ffffff;
+            transition: background 0.12s ease, transform 0.08s ease,
+                        box-shadow 0.08s ease;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+        }
+
+        button:hover {
+            background: #1d4ed8;
+            transform: translateY(-1px);
+            box-shadow: 0 10px 22px rgba(37, 99, 235, 0.28);
+        }
+
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 5px 12px rgba(15, 23, 42, 0.18);
+        }
+
+        .result-panel {
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 14px 14px 12px;
+            background: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .result-header {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: #6b7280;
+        }
+
+        #resultText {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #111827;
+        }
+
+        #probText {
+            margin: 0;
+            font-size: 0.85rem;
+            color: #4b5563;
+        }
+
+        .status-pill {
+            align-self: flex-start;
+            padding: 3px 9px 4px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .status-neutral {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .status-approved {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-rejected {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+        
+        .image-wrapper {
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            overflow: hidden;
+            background: #f3f4f6;
+            margin-top: 10px;
+
+            /* same fixed area for all GIFs */
+            width: 100%;
+            height: 260px; /* adjust as you like */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .image-wrapper img {
+            display: block;
+
+            /* resize to fit area WITHOUT cropping */
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+
+            /* no object-fit needed in this case */
+        }
+
+
+        .right-column {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .small-muted {
+            font-size: 0.75rem;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="card">
+        <!-- Left: Form -->
+        <div>
+            <div class="header">
+                <h1 class="title">Loan Approval Prediction</h1>
+                <p class="subtitle">Enter applicant details to estimate approval probability.</p>
+            </div>
+
+            <form id="predictionForm">
+                <div class="field-grid">
+                    <div class="field">
+                        <label for="Gender">
+                            <span>Gender</span>
+                        </label>
+                        <select id="Gender" required>
+                            <option value="Male" selected>Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="Married">
+                            <span>Married</span>
+                        </label>
+                        <select id="Married" required>
+                            <option value="No" selected>No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="Dependents">
+                            <span>Dependents</span>
+                        </label>
+                        <select id="Dependents" required>
+                            <option value="0" selected>0</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3+">3+</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="Education">
+                            <span>Education</span>
+                        </label>
+                        <select id="Education" required>
+                            <option value="Graduate" selected>Graduate</option>
+                            <option value="Not Graduate">Not Graduate</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="Self_Employed">
+                            <span>Self Employed</span>
+                        </label>
+                        <select id="Self_Employed" required>
+                            <option value="No" selected>No</option>
+                            <option value="Yes">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="Property_Area">
+                            <span>Property Area</span>
+                        </label>
+                        <select id="Property_Area" required>
+                            <option value="Urban" selected>Urban</option>
+                            <option value="Semiurban">Semiurban</option>
+                            <option value="Rural">Rural</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="ApplicantIncome">
+                            <span>Applicant Income</span>
+                            <span class="range-note">Typical: 0 – 100000</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            id="ApplicantIncome"
+                            placeholder="e.g. 5000"
+                            value="5000"
+                            min="0"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="CoapplicantIncome">
+                            <span>Co-applicant Income</span>
+                            <span class="range-note">Can be 0</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            id="CoapplicantIncome"
+                            placeholder="e.g. 2000"
+                            value="2000"
+                            min="0"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="LoanAmount">
+                            <span>Loan Amount</span>
+                            <span class="range-note">In thousands (e.g., 150)</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            id="LoanAmount"
+                            placeholder="e.g. 150"
+                            value="150"
+                            min="0"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="Loan_Amount_Term">
+                            <span>Loan Term</span>
+                            <span class="range-note">In days (e.g., 360)</span>
+                        </label>
+                        <input
+                            type="number"
+                            step="1"
+                            id="Loan_Amount_Term"
+                            placeholder="e.g. 360"
+                            value="360"
+                            min="1"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label for="Credit_History">
+                            <span>Credit History</span>
+                            <span class="range-note">1 = good, 0 = bad</span>
+                        </label>
+                        <select id="Credit_History" required>
+                            <option value="1" selected>1 — Good</option>
+                            <option value="0">0 — Bad</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit">Predict</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Right: Result + Image -->
+        <div class="right-column">
+            <div id="resultStatus" class="status-pill status-neutral">
+                Awaiting input
+            </div>
+
+            <div class="result-panel">
+                <div class="result-header">Prediction</div>
+                <p id="resultText">Fill in the form and click “Predict”.</p>
+                <p id="probText" class="small-muted">The predicted approval and probability will appear here.</p>
+            </div>
+
+            <div class="image-wrapper">
+                <!-- Default image: batman-does.gif -->
+                <img id="resultImage" src="/static/mian-saab-nawaz-sharif.gif" alt="Loan decision">
+            </div>
+
+            <p class="small-muted">
+                Output is based on the trained loan model and input values.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('predictionForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const data = {
+            Gender: document.getElementById('Gender').value,
+            Married: document.getElementById('Married').value,
+            Dependents: document.getElementById('Dependents').value,
+            Education: document.getElementById('Education').value,
+            Self_Employed: document.getElementById('Self_Employed').value,
+            Property_Area: document.getElementById('Property_Area').value,
+            ApplicantIncome: parseFloat(document.getElementById('ApplicantIncome').value),
+            CoapplicantIncome: parseFloat(document.getElementById('CoapplicantIncome').value),
+            LoanAmount: parseFloat(document.getElementById('LoanAmount').value),
+            Loan_Amount_Term: parseFloat(document.getElementById('Loan_Amount_Term').value),
+            Credit_History: parseFloat(document.getElementById('Credit_History').value)
+        };
+
+        const resultText   = document.getElementById('resultText');
+        const probText     = document.getElementById('probText');
+        const resultImage  = document.getElementById('resultImage');
+        const resultStatus = document.getElementById('resultStatus');
+
+        resultText.textContent   = 'Running prediction...';
+        probText.textContent     = '';
+        resultStatus.textContent = 'Predicting…';
+        resultStatus.className   = 'status-pill status-neutral';
+
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                const approved = result.prediction === 1;
+                const prob = result.probability;
+                const probPercent = (prob * 100).toFixed(1);
+
+                resultText.textContent = approved
+                    ? 'Prediction: Loan Approved'
+                    : 'Prediction: Loan Rejected';
+
+                probText.textContent = `Estimated approval probability: ${probPercent}%`;
+
+                if (approved) {
+                 
+                    resultImage.src = '/static/trump-thumbs-up.gif';
+                    resultImage.alt = 'Loan approved';
+                    resultStatus.textContent = 'Approval likely';
+                    resultStatus.className = 'status-pill status-approved';
+                } else {
+                  
+                    resultImage.src = '/static/batman-does.gif';
+                    resultImage.alt = 'Loan rejected';
+                    resultStatus.textContent = 'Approval unlikely';
+                    resultStatus.className = 'status-pill status-rejected';
+                }
+            } else {
+                resultText.textContent = 'Error while predicting.';
+                probText.textContent = result.detail || 'Something went wrong on the server.';
+                resultStatus.textContent = 'Error';
+                resultStatus.className = 'status-pill status-rejected';
+            }
+        } catch (err) {
+            console.error(err);
+            resultText.textContent = 'Network or server error.';
+            probText.textContent = 'Check if the FastAPI service is running.';
+            resultStatus.textContent = 'Error';
+            resultStatus.className = 'status-pill status-rejected';
+        }
+    });
+</script>
+</body>
+</html>

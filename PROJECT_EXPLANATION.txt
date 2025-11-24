@@ -1,0 +1,84 @@
+================================================================================
+METER DATA AIRFLOW PROJECT - DETAILED EXPLANATION
+================================================================================
+
+1. PROJECT OVERVIEW
+-------------------
+This project is an end-to-end MLOps pipeline designed to ingest, process, analyze, and forecast smart meter data. It leverages Apache Airflow for orchestration, MLflow for experiment tracking, PostgreSQL for data storage, and FastAPI for serving predictions via a Web UI.
+
+The system is containerized using Docker, ensuring consistency across environments.
+
+2. ARCHITECTURE & INFRASTRUCTURE
+--------------------------------
+- **Docker**: The entire stack runs in Docker containers.
+  - `airflow-webserver` & `airflow-scheduler`: Orchestrate workflows.
+  - `postgres`: Stores raw data and Airflow metadata.
+  - `mlflow_server`: Tracks model experiments, metrics, and artifacts.
+  - `model_api`: Serves the trained models via a REST API and Web UI.
+
+3. PIPELINES (AIRFLOW DAGS)
+---------------------------
+The project consists of three main pipelines (DAGs):
+
+A. Data Ingestion Pipeline (`data_pipeline_dag`)
+   - **Goal**: Ingest raw CSV data into the PostgreSQL database.
+   - **Schedule**: Runs every 15 minutes.
+   - **Steps**:
+     1. **Check CSV Exists**: Verifies that `customers.csv`, `meters.csv`, and `meter_readings.csv` exist in the raw data volume.
+     2. **Load to Postgres**: Reads the CSVs and loads them into their respective raw tables (`customers_raw`, `meters_raw`, `meter_readings_raw`) in PostgreSQL.
+     3. **Quality Checks**: Runs basic data quality checks (e.g., null checks, data type validation).
+
+B. Training Pipeline (`meter_training_pipeline_dag`)
+   - **Goal**: Train a Linear Regression model to predict current energy consumption based on instantaneous metrics.
+   - **Schedule**: Manual / Ad-hoc.
+   - **Steps**:
+     1. **Train Linear Regression**:
+        - Fetches data from `meter_readings.csv`.
+        - Features: Voltage, Temperature, Power Factor, Load (kW), Frequency.
+        - Target: Units (kWh).
+        - Splits data into train/test sets and trains a Scikit-Learn Linear Regression model.
+     2. **Log to MLflow**:
+        - Logs the trained model, MSE, and R2 score to the `Meter_data` experiment in MLflow.
+        - Saves the model artifact for the API to use.
+
+C. Forecasting Pipeline (`forecasting_dag`)
+   - **Goal**: Forecast future energy consumption using the Prophet model.
+   - **Schedule**: Daily at 2:00 AM.
+   - **Dependencies**: Waits for `data_pipeline_dag` to complete successfully using an `ExternalTaskSensor`.
+   - **Steps**:
+     1. **Wait for Data Pipeline**: Ensures fresh data is available before training.
+     2. **Train Prophet Model**:
+        - Prepares time-series data (`ds` for timestamp, `y` for units).
+        - Trains a Facebook Prophet model to capture daily/weekly seasonality.
+        - Logs MAE, RMSE, and the Prophet model artifact to the `Meter_Forecasting` experiment in MLflow.
+
+4. MODEL SERVING & WEB UI
+-------------------------
+The `model_api` service provides an interface for users to interact with the models.
+
+- **Technology**: FastAPI (Python) + HTML/CSS/JS.
+- **Endpoints**:
+  - `POST /predict`: Uses the Linear Regression model to predict energy consumption based on user inputs (Voltage, Temp, etc.).
+  - `POST /forecast`: Uses the Prophet model to generate a future consumption forecast for N days.
+- **User Interface**:
+  - A responsive Web UI (`meter.html`) allows users to:
+    - Adjust sliders for input parameters (Voltage, Load, etc.) to see real-time predictions.
+    - Request a load forecast for the next 7-30 days and view the results in a table.
+
+5. HOW TO RUN
+-------------
+1. **Start Services**:
+   Run `docker-compose up -d --build` to start all containers.
+
+2. **Access Interfaces**:
+   - **Airflow UI**: http://localhost:8080 (Trigger DAGs here)
+   - **MLflow UI**: http://localhost:5000 (View experiments and models)
+   - **Web App**: http://localhost:5501 (Interact with predictions and forecasts)
+
+3. **Workflow**:
+   - Ensure CSV files are in `data/raw/`.
+   - Airflow will automatically ingest data.
+   - The Forecasting DAG will run daily to update the Prophet model.
+   - Use the Web App to view insights.
+
+================================================================================

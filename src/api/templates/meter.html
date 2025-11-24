@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartGrid estimation | Electricity Load estimation</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --dark: #1f2937;
+            --light: #f8fafc;
+            --gray: #6b7280;
+            --gray-light: #e5e7eb;
+            --danger: #ef4444;
+            --success: #10b981;
+            --border-radius: 12px;
+            --shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .app-card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-section,
+        .results-section {
+            background: var(--light);
+            padding: 2rem;
+            border-radius: var(--border-radius);
+            border: 1px solid var(--gray-light);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--dark);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .input-with-icon {
+            position: relative;
+        }
+
+        .input-with-icon i {
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--gray);
+        }
+
+        .input-with-icon input {
+            width: 100%;
+            padding: 1rem 1rem 1rem 3rem;
+            border: 2px solid var(--gray-light);
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .input-with-icon input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        .input-range {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .input-range input[type="range"] {
+            flex: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--gray-light);
+            outline: none;
+        }
+
+        .range-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: var(--border-radius);
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn i {
+            font-size: 1.2rem;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 2rem;
+            text-align: center;
+            border: 2px solid var(--gray-light);
+            transition: var(--transition);
+        }
+
+        .result-card.loading {
+            opacity: 0.7;
+        }
+
+        .result-value {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 1rem 0;
+        }
+
+        .result-unit {
+            font-size: 1.2rem;
+            color: var(--gray);
+            font-weight: 500;
+        }
+
+        .result-label {
+            font-size: 1.1rem;
+            color: var(--dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 1.5rem 1rem;
+            border-radius: var(--border-radius);
+            text-align: center;
+            border: 1px solid var(--gray-light);
+            transition: var(--transition);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .feature-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin: 0.5rem 0;
+        }
+
+        .feature-label {
+            font-size: 0.9rem;
+            color: var(--gray);
+            font-weight: 500;
+        }
+
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid var(--gray-light);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 2rem;
+            color: white;
+            opacity: 0.8;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: var(--border-radius);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .alert.error {
+            background: #fef2f2;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .alert.success {
+            background: #f0fdf4;
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="app-card">
+            <div class="header">
+                <h1>
+                    <i class="fas fa-bolt"></i>
+                    SmartGrid Predict
+                </h1>
+                <p>Advanced Machine Learning for Electricity Load Forecasting</p>
+            </div>
+
+            <div class="content">
+                <div class="form-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-sliders-h"></i>
+                        Input Parameters
+                    </h2>
+
+                    <div class="alert error" id="errorAlert"></div>
+                    <div class="alert success" id="successAlert"></div>
+
+                    <form id="predictionForm">
+                        <div class="form-group">
+                            <label for="voltage">Voltage (V)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-bolt"></i>
+                                <input type="number" id="voltage" step="0.1" value="220.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="voltageRange" min="110" max="440" step="1" value="220">
+                                <span class="range-value" id="voltageValue">220.0 V</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="temperature">Temperature (°C)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-thermometer-half"></i>
+                                <input type="number" id="temperature" step="0.1" value="25.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="temperatureRange" min="-10" max="50" step="1" value="25">
+                                <span class="range-value" id="temperatureValue">25.0 °C</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="power_factor">Power Factor</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-cogs"></i>
+                                <input type="number" id="power_factor" step="0.01" min="0" max="1" value="0.95"
+                                    required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="powerFactorRange" min="0" max="100" step="1" value="95">
+                                <span class="range-value" id="powerFactorValue">0.95</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="load_kw">Load (kW)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-industry"></i>
+                                <input type="number" id="load_kw" step="0.1" value="50.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="loadRange" min="0" max="200" step="1" value="50">
+                                <span class="range-value" id="loadValue">50.0 kW</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="frequency_hz">Frequency (Hz)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-wave-square"></i>
+                                <input type="number" id="frequency_hz" step="0.1" value="50.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="frequencyRange" min="45" max="65" step="0.1" value="50.0">
+                                <span class="range-value" id="frequencyValue">50.0 Hz</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn">
+                            <i class="fas fa-calculator"></i>
+                            Predict Energy Consumption
+                        </button>
+                    </form>
+                </div>
+
+                <div class="results-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line"></i>
+                        Prediction Results
+                    </h2>
+
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner"></div>
+                        <p>Analyzing parameters and predicting consumption...</p>
+                    </div>
+
+                    <div class="result-card" id="resultCard">
+                        <div class="result-label">Predicted Energy Consumption</div>
+                        <div class="result-value" id="predictedValue">--</div>
+                        <div class="result-unit">kilowatt-hours (kWh)</div>
+
+                        <div class="feature-cards" id="featureCards">
+                            <div class="feature-card">
+                                <i class="fas fa-bolt" style="color: #ef4444;"></i>
+                                <div class="feature-value" id="currentVoltage">--</div>
+                                <div class="feature-label">Voltage</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-thermometer-half" style="color: #10b981;"></i>
+                                <div class="feature-value" id="currentTemp">--</div>
+                                <div class="feature-label">Temperature</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-cogs" style="color: #8b5cf6;"></i>
+                                <div class="feature-value" id="currentPF">--</div>
+                                <div class="feature-label">Power Factor</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-industry" style="color: #f59e0b;"></i>
+                                <div class="feature-value" id="currentLoad">--</div>
+                                <div class="feature-label">Load</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Powered by Machine Learning • SmartGrid Predict v1.0</p>
+        </div>
+    </div>
+
+    <script>
+        // Sync range sliders with number inputs
+        function setupRangeSync(numberId, rangeId, valueId, formatFn) {
+            const numberInput = document.getElementById(numberId);
+            const rangeInput = document.getElementById(rangeId);
+            const valueSpan = document.getElementById(valueId);
+
+            function updateValues() {
+                if (numberId.includes('power_factor')) {
+                    const rangeValue = rangeInput.value / 100;
+                    numberInput.value = rangeValue;
+                    valueSpan.textContent = formatFn ? formatFn(rangeValue) : rangeValue;
+                } else {
+                    numberInput.value = rangeInput.value;
+                    valueSpan.textContent = formatFn ? formatFn(rangeInput.value) : rangeInput.value;
+                }
+            }
+
+            numberInput.addEventListener('input', function () {
+                if (numberId.includes('power_factor')) {
+                    rangeInput.value = numberInput.value * 100;
+                } else {
+                    rangeInput.value = numberInput.value;
+                }
+                valueSpan.textContent = formatFn ? formatFn(numberInput.value) : numberInput.value;
+            });
+
+            rangeInput.addEventListener('input', updateValues);
+            updateValues();
+        }
+
+        // Initialize range sliders
+        setupRangeSync('voltage', 'voltageRange', 'voltageValue', val => val + ' V');
+        setupRangeSync('temperature', 'temperatureRange', 'temperatureValue', val => val + ' °C');
+        setupRangeSync('power_factor', 'powerFactorRange', 'powerFactorValue', val => parseFloat(val).toFixed(2));
+        setupRangeSync('load_kw', 'loadRange', 'loadValue', val => val + ' kW');
+        setupRangeSync('frequency_hz', 'frequencyRange', 'frequencyValue', val => val + ' Hz');
+
+        // Form submission
+        document.getElementById('predictionForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = {
+                voltage: parseFloat(document.getElementById('voltage').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                power_factor: parseFloat(document.getElementById('power_factor').value),
+                load_kw: parseFloat(document.getElementById('load_kw').value),
+                frequency_hz: parseFloat(document.getElementById('frequency_hz').value)
+            };
+
+            // Show loading state
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('resultCard').classList.add('loading');
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('successAlert').style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Prediction failed');
+                }
+
+                // Update results
+                document.getElementById('predictedValue').textContent =
+                    data.predicted_units.toFixed(2);
+
+                // Update feature cards
+                document.getElementById('currentVoltage').textContent = formData.voltage + 'V';
+                document.getElementById('currentTemp').textContent = formData.temperature + '°C';
+                document.getElementById('currentPF').textContent = formData.power_factor.toFixed(2);
+                document.getElementById('currentLoad').textContent = formData.load_kw + 'kW';
+
+                // Show success message
+                document.getElementById('successAlert').textContent =
+                    'Prediction completed successfully!';
+                document.getElementById('successAlert').style.display = 'block';
+
+            } catch (error) {
+                document.getElementById('errorAlert').textContent =
+                    'Error: ' + error.message;
+                document.getElementById('errorAlert').style.display = 'block';
+            } finally {
+                        <div class="form-group">
+                            <label for="temperature">Temperature (°C)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-thermometer-half"></i>
+                                <input type="number" id="temperature" step="0.1" value="25.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="temperatureRange" min="-10" max="50" step="1" value="25">
+                                <span class="range-value" id="temperatureValue">25.0 °C</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="power_factor">Power Factor</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-cogs"></i>
+                                <input type="number" id="power_factor" step="0.01" min="0" max="1" value="0.95"
+                                    required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="powerFactorRange" min="0" max="100" step="1" value="95">
+                                <span class="range-value" id="powerFactorValue">0.95</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="load_kw">Load (kW)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-industry"></i>
+                                <input type="number" id="load_kw" step="0.1" value="50.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="loadRange" min="0" max="200" step="1" value="50">
+                                <span class="range-value" id="loadValue">50.0 kW</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="frequency_hz">Frequency (Hz)</label>
+                            <div class="input-with-icon">
+                                <i class="fas fa-wave-square"></i>
+                                <input type="number" id="frequency_hz" step="0.1" value="50.0" required>
+                            </div>
+                            <div class="input-range">
+                                <input type="range" id="frequencyRange" min="45" max="65" step="0.1" value="50.0">
+                                <span class="range-value" id="frequencyValue">50.0 Hz</span>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn">
+                            <i class="fas fa-calculator"></i>
+                            Predict Energy Consumption
+                        </button>
+                    </form>
+                </div>
+
+                <div class="results-section">
+                    <h2 class="section-title">
+                        <i class="fas fa-chart-line"></i>
+                        Prediction Results
+                    </h2>
+
+                    <div class="loading-spinner" id="loadingSpinner">
+                        <div class="spinner"></div>
+                        <p>Analyzing parameters and predicting consumption...</p>
+                    </div>
+
+                    <div class="result-card" id="resultCard">
+                        <div class="result-label">Predicted Energy Consumption</div>
+                        <div class="result-value" id="predictedValue">--</div>
+                        <div class="result-unit">kilowatt-hours (kWh)</div>
+
+                        <div class="feature-cards" id="featureCards">
+                            <div class="feature-card">
+                                <i class="fas fa-bolt" style="color: #ef4444;"></i>
+                                <div class="feature-value" id="currentVoltage">--</div>
+                                <div class="feature-label">Voltage</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-thermometer-half" style="color: #10b981;"></i>
+                                <div class="feature-value" id="currentTemp">--</div>
+                                <div class="feature-label">Temperature</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-cogs" style="color: #8b5cf6;"></i>
+                                <div class="feature-value" id="currentPF">--</div>
+                                <div class="feature-label">Power Factor</div>
+                            </div>
+                            <div class="feature-card">
+                                <i class="fas fa-industry" style="color: #f59e0b;"></i>
+                                <div class="feature-value" id="currentLoad">--</div>
+                                <div class="feature-label">Load</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>Powered by Machine Learning • SmartGrid Predict v1.0</p>
+        </div>
+    </div>
+
+    <script>
+        // Sync range sliders with number inputs
+        function setupRangeSync(numberId, rangeId, valueId, formatFn) {
+            const numberInput = document.getElementById(numberId);
+            const rangeInput = document.getElementById(rangeId);
+            const valueSpan = document.getElementById(valueId);
+
+            function updateValues() {
+                if (numberId.includes('power_factor')) {
+                    const rangeValue = rangeInput.value / 100;
+                    numberInput.value = rangeValue;
+                    valueSpan.textContent = formatFn ? formatFn(rangeValue) : rangeValue;
+                } else {
+                    numberInput.value = rangeInput.value;
+                    valueSpan.textContent = formatFn ? formatFn(rangeInput.value) : rangeInput.value;
+                }
+            }
+
+            numberInput.addEventListener('input', function () {
+                if (numberId.includes('power_factor')) {
+                    rangeInput.value = numberInput.value * 100;
+                } else {
+                    rangeInput.value = numberInput.value;
+                }
+                valueSpan.textContent = formatFn ? formatFn(numberInput.value) : numberInput.value;
+            });
+
+            rangeInput.addEventListener('input', updateValues);
+            updateValues();
+        }
+
+        // Initialize range sliders
+        setupRangeSync('voltage', 'voltageRange', 'voltageValue', val => val + ' V');
+        setupRangeSync('temperature', 'temperatureRange', 'temperatureValue', val => val + ' °C');
+        setupRangeSync('power_factor', 'powerFactorRange', 'powerFactorValue', val => parseFloat(val).toFixed(2));
+        setupRangeSync('load_kw', 'loadRange', 'loadValue', val => val + ' kW');
+        setupRangeSync('frequency_hz', 'frequencyRange', 'frequencyValue', val => val + ' Hz');
+
+        // Form submission
+        document.getElementById('predictionForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const formData = {
+                voltage: parseFloat(document.getElementById('voltage').value),
+                temperature: parseFloat(document.getElementById('temperature').value),
+                power_factor: parseFloat(document.getElementById('power_factor').value),
+                load_kw: parseFloat(document.getElementById('load_kw').value),
+                frequency_hz: parseFloat(document.getElementById('frequency_hz').value)
+            };
+
+            // Show loading state
+            document.getElementById('loadingSpinner').style.display = 'block';
+            document.getElementById('resultCard').classList.add('loading');
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('successAlert').style.display = 'none';
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Prediction failed');
+                }
+
+                // Update results
+                document.getElementById('predictedValue').textContent =
+                    data.predicted_units.toFixed(2);
+
+                // Update feature cards
+                document.getElementById('currentVoltage').textContent = formData.voltage + 'V';
+                document.getElementById('currentTemp').textContent = formData.temperature + '°C';
+                document.getElementById('currentPF').textContent = formData.power_factor.toFixed(2);
+                document.getElementById('currentLoad').textContent = formData.load_kw + 'kW';
+
+                // Show success message
+                document.getElementById('successAlert').textContent =
+                    'Prediction completed successfully!';
+                document.getElementById('successAlert').style.display = 'block';
+
+            } catch (error) {
+                document.getElementById('errorAlert').textContent =
+                    'Error: ' + error.message;
+                document.getElementById('errorAlert').style.display = 'block';
+            } finally {
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('resultCard').classList.remove('loading');
+            }
+        });
+
+        // Initialize with default values in feature cards
+        document.getElementById('currentVoltage').textContent = '220V';
+        document.getElementById('currentTemp').textContent = '25°C';
+        document.getElementById('currentPF').textContent = '0.95';
+        document.getElementById('currentLoad').textContent = '50kW';
+
+        // Forecast Form Submission
+        document.getElementById('forecastForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            
+            const days = parseInt(document.getElementById('days').value);
+            const resultsSection = document.getElementById('forecastResultsSection');
+            const tableBody = document.getElementById('forecastTableBody');
+            
+            // Show loading (reuse existing spinner logic or add new one)
+            // For simplicity, just clearing table and showing section
+            resultsSection.style.display = 'block';
+            tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 1rem;">Loading forecast...</td></tr>';
+
+            try {
+                const response = await fetch('/forecast', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ days: days })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Forecasting failed');
+                }
+
+                tableBody.innerHTML = '';
+                data.forEach(row => {
+                    const date = new Date(row.ds).toLocaleDateString();
+                    const tr = document.createElement('tr');
+                    tr.style.borderBottom = '1px solid #e5e7eb';
+                    tr.innerHTML = `
+                        <td style="padding: 0.75rem;">${date}</td>
+                        <td style="padding: 0.75rem; text-align: right; font-weight: bold; color: var(--primary);">${row.yhat.toFixed(2)}</td>
+                        <td style="padding: 0.75rem; text-align: right; color: var(--gray);">${row.yhat_lower.toFixed(2)}</td>
+                        <td style="padding: 0.75rem; text-align: right; color: var(--gray);">${row.yhat_upper.toFixed(2)}</td>
+                    `;
+                    tableBody.appendChild(tr);
+                });
+
+            } catch (error) {
+                tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger); padding: 1rem;">Error: ${error.message}</td></tr>`;
+            }
+        });
+    </script>
+
+</body>
+
+</html>

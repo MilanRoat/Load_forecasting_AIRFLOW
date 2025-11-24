@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.env
+*.egg-info/
+venv/
+.virtualenv/
+
+# Data
+data/raw/
+
+# Artifacts & Logs
+mlflow_artifacts/
+*.log
+notebooks/.ipynb_checkpoints/
+
+# OS
+.DS_Store

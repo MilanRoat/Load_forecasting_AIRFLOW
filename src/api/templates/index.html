@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Meter Units Prediction</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: #f3f4f6;
+            color: #111827;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .page {
+            width: 100%;
+            max-width: 700px;
+            padding: 24px;
+        }
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+            padding: 24px;
+            display: grid;
+            gap: 24px;
+        }
+        .header { margin-bottom: 16px; }
+        .title { margin: 0; font-size: 1.6rem; font-weight: 600; }
+        form { margin-top: 8px; }
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 16px;
+        }
+        @media (max-width: 600px) { .field-grid { grid-template-columns: 1fr; } }
+        .field { display: flex; flex-direction: column; font-size: 0.85rem; }
+        .field label { margin-bottom: 4px; color: #374151; }
+        input { padding: 7px 9px; border-radius: 8px; border: 1px solid #d1d5db; background: #f9fafb; color: #111827; font-size: 0.9rem; outline: none; transition: border-color 0.12s ease, background 0.12s ease; }
+        input:focus { border-color: #2563eb; background: #ffffff; }
+        .actions { margin-top: 16px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button {
+            border: none;
+            border-radius: 999px;
+            padding: 8px 18px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            cursor: pointer;
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+        }
+        button:hover { background: #1d4ed8; }
+        .result-panel {
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            padding: 14px;
+            background: #f9fafb;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .result-header { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.12em; color: #6b7280; }
+        #resultText { margin: 0; font-size: 1.1rem; color: #111827; }
+    </style>
+</head>
+<body>
+<div class="page">
+    <div class="card">
+        <div>
+            <div class="header">
+                <h1 class="title">Meter Units Prediction</h1>
+            </div>
+
+            <form id="predictionForm">
+                <div class="field-grid">
+                    <div class="field">
+                        <label for="voltage">Voltage (V)</label>
+                        <input type="number" step="0.1" id="voltage" placeholder="e.g. 230" required>
+                    </div>
+                    <div class="field">
+                        <label for="temperature">Temperature (°C)</label>
+                        <input type="number" step="0.1" id="temperature" placeholder="e.g. 25" required>
+                    </div>
+                    <div class="field">
+                        <label for="power_factor">Power Factor</label>
+                        <input type="number" step="0.01" id="power_factor" placeholder="e.g. 0.95" required>
+                    </div>
+                    <div class="field">
+                        <label for="load_kw">Load (kW)</label>
+                        <input type="number" step="0.1" id="load_kw" placeholder="e.g. 5.5" required>
+                    </div>
+                    <div class="field">
+                        <label for="frequency_hz">Frequency (Hz)</label>
+                        <input type="number" step="0.1" id="frequency_hz" placeholder="e.g. 50" required>
+                    </div>
+                </div>
+
+                <div class="actions">
+                    <button type="submit">Predict Units</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="result-panel">
+            <div class="result-header">Prediction</div>
+            <p id="resultText">Enter meter details and click “Predict Units”.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('predictionForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const data = {
+            voltage: parseFloat(document.getElementById('voltage').value),
+            temperature: parseFloat(document.getElementById('temperature').value),
+            power_factor: parseFloat(document.getElementById('power_factor').value),
+            load_kw: parseFloat(document.getElementById('load_kw').value),
+            frequency_hz: parseFloat(document.getElementById('frequency_hz').value)
+        };
+
+        const resultText = document.getElementById('resultText');
+        resultText.textContent = 'Predicting…';
+
+        try {
+            const response = await fetch('/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                resultText.textContent = `Predicted Units: ${result.predicted_units.toFixed(2)}`;
+            } else {
+                resultText.textContent = `Error: ${result.detail || 'Something went wrong.'}`;
+            }
+        } catch (err) {
+            console.error(err);
+            resultText.textContent = 'Network or server error. Check if FastAPI is running.';
+        }
+    });
+</script>
+</body>
+</html>
